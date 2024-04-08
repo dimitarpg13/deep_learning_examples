@@ -9,6 +9,8 @@
 
 [The ReLU class](#the-relu)
 
+[The Normalize class](#normalize)
+
 ## <a id="conv-2d"></a>The two dimensional convolution layer and class Conv2d
 
 ### Conv2d class implementation in torch
@@ -424,4 +426,107 @@ The function `torch.relu` is implemented in C and is declared in `_VariableFunct
 
 ```python
 def relu(input: Tensor) -> Tensor: ...
+```
+## <a id="normalize"></a>The Normalize class implementation in torch
+
+### The Normalize class
+
+```python
+class Normalize(torch.nn.Module):
+    """Normalize a tensor image with mean and standard deviation.
+    This transform does not support PIL Image.
+    Given mean: ``(mean[1],...,mean[n])`` and std: ``(std[1],..,std[n])`` for ``n``
+    channels, this transform will normalize each channel of the input
+    ``torch.*Tensor`` i.e.,
+    ``output[channel] = (input[channel] - mean[channel]) / std[channel]``
+
+    .. note::
+        This transform acts out of place, i.e., it does not mutate the input tensor.
+
+    Args:
+        mean (sequence): Sequence of means for each channel.
+        std (sequence): Sequence of standard deviations for each channel.
+        inplace(bool,optional): Bool to make this operation in-place.
+
+    """
+
+    def __init__(self, mean, std, inplace=False):
+        super().__init__()
+        _log_api_usage_once(self)
+        self.mean = mean
+        self.std = std
+        self.inplace = inplace
+
+    def forward(self, tensor: Tensor) -> Tensor:
+        """
+        Args:
+            tensor (Tensor): Tensor image to be normalized.
+
+        Returns:
+            Tensor: Normalized Tensor image.
+        """
+        return F.normalize(tensor, self.mean, self.std, self.inplace)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(mean={self.mean}, std={self.std})"
+
+```
+### The normalize function
+
+```python
+def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool = False) -> Tensor:
+    """Normalize a float tensor image with mean and standard deviation.
+    This transform does not support PIL Image.
+
+    .. note::
+        This transform acts out of place by default, i.e., it does not mutates the input tensor.
+
+    See :class:`~torchvision.transforms.Normalize` for more details.
+
+    Args:
+        tensor (Tensor): Float tensor image of size (C, H, W) or (B, C, H, W) to be normalized.
+        mean (sequence): Sequence of means for each channel.
+        std (sequence): Sequence of standard deviations for each channel.
+        inplace(bool,optional): Bool to make this operation inplace.
+
+    Returns:
+        Tensor: Normalized Tensor image.
+    """
+    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
+        _log_api_usage_once(normalize)
+    if not isinstance(tensor, torch.Tensor):
+        raise TypeError(f"img should be Tensor Image. Got {type(tensor)}")
+
+    return F_t.normalize(tensor, mean=mean, std=std, inplace=inplace)
+
+```
+
+Implementation of `_functional_tensor.normalize(...)`
+
+```python
+def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool = False) -> Tensor:
+    _assert_image_tensor(tensor)
+
+    if not tensor.is_floating_point():
+        raise TypeError(f"Input tensor should be a float tensor. Got {tensor.dtype}.")
+
+    if tensor.ndim < 3:
+        raise ValueError(
+            f"Expected tensor to be a tensor image of size (..., C, H, W). Got tensor.size() = {tensor.size()}"
+        )
+
+    if not inplace:
+        tensor = tensor.clone()
+
+    dtype = tensor.dtype
+    mean = torch.as_tensor(mean, dtype=dtype, device=tensor.device)
+    std = torch.as_tensor(std, dtype=dtype, device=tensor.device)
+    if (std == 0).any():
+        raise ValueError(f"std evaluated to zero after conversion to {dtype}, leading to division by zero.")
+    if mean.ndim == 1:
+        mean = mean.view(-1, 1, 1)
+    if std.ndim == 1:
+        std = std.view(-1, 1, 1)
+    return tensor.sub_(mean).div_(std)
+
 ```
