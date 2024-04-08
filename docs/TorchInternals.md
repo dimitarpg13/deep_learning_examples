@@ -1,12 +1,12 @@
 # Torch Internals
 
 ## <a id="contents"></a>Contents
-[The Conv2d class](#Conv2D)
+[The Conv2d class](#conv2d)
 
 [The MaxPool class](#MaxPool)
 
 
-## <a id="Conv2D"></a>The Conv2D layer and class
+## <a id="conv2d"></a>The Conv2D layer and class
 
 ### Conv2D class implementation in torch
 
