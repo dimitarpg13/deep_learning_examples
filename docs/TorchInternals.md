@@ -6,7 +6,7 @@
 [The MaxPool class](#MaxPool)
 
 
-## <a id="Conv2D"></a> The Conv2D layer and class
+## <a id="Conv2D"></a>The Conv2D layer and class
 
 ### Conv2D class implementation in torch
 
@@ -161,7 +161,7 @@ class Conv2d(_ConvNd):
         return self._conv_forward(input, self.weight, self.bias)
 ```
 
-## <a id="MaxPool"></a> MaxPool layer
+## <a id="MaxPool"></a>MaxPool layer
 
 ### Basics on Max Pooling
 
