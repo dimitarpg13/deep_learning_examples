@@ -1,6 +1,35 @@
 # Torch Internals
 
-## <a name="MaxPool"></a> MaxPool
+## <a name="MaxPool"></a> MaxPool layer
+
+### Basics on Max Pooling
+
+Max pooling is a downsampling technique commonly used in convolutional neural networks (CNNs) to reduce the spatial dimensions of an input volume. It is a form of non-linear down-sampling that serves to make the representation smaller and more manageable, and to reduce the number of parameters and computation in the network. Max pooling operates independently on each depth slice of the input and resizes it spatially.
+
+The primary objective of max pooling is to reduce the amount of information in an image while maintaining the essential features necessary for accurate image recognition. This process helps to make the detection of features in input data invariant to scale and orientation changes and also aids in preventing overfitting.
+
+How Max Pooling works?
+
+Max pooling is performed on the convolutional layers of a CNN. It involves sliding a window (often called a filter or kernel) across the input data, similar to the convolution step, but instead of performing a matrix multiplication, max pooling takes the maximum value within the window. This maximum value becomes a single pixel in the new, pooled output. The window is then slid across the input data by a stride of a certain number of pixels, and the process is repeated until the entire input image has been processed.
+
+Typically, the size of the pooling window is 2x2, and the stride with which the window is moved is also 2 pixels. This setup reduces the size of the input by half, both in height and width, effectively reducing the total number of pixels by 75%.
+
+Max Pooling vs other Pooling methods
+
+While max pooling is a popular choice, there are other pooling methods, such as average pooling and L2-norm pooling. Average pooling takes the average of all values in the pooling window, which can result in smoother pooled outputs. L2-norm pooling takes the square root of the sum of squares of the values in the window. Each pooling method has its own advantages and is chosen based on the specific requirements of the model or the type of data being processed.
+
+In practice, max pooling layers are placed after convolutional layers in a CNN. After a convolutional layer extracts features from the input image, the max pooling layer reduces the spatial size of the convolved feature map, keeping only the most salient information. This process is repeated for multiple convolutional and pooling layers, allowing the network to learn a hierarchy of features at various levels of abstraction.
+
+Max pooling is a simple yet effective technique that has been instrumental in the success of CNNs in various applications, particularly in image and video recognition tasks. Its ability to reduce the computational burden while maintaining the essential features has made it a staple component in deep learning architectures.
+
+Challenges with Max Pooling
+
+Despite its benefits, max pooling is not without its challenges. One criticism is that it can sometimes be too aggressive, discarding potentially useful information that could be important for the classification task. Moreover, max pooling is a fixed operation and does not learn from the data, unlike convolutional layers that have learnable parameters.
+
+As a result, some modern CNN architectures have started to move away from traditional max pooling layers, using alternatives like strided convolutions for downsampling or incorporating learnable pooling operations that can adapt to the data.
+
+### Max Pooling layer implementation in torch
+
 
 ```python
 class MaxPool2d(_MaxPoolNd):
