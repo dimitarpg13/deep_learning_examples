@@ -271,7 +271,7 @@ class MaxPool2d(_MaxPoolNd):
 
 ### Brief overview of what the linear layer does
 
-If we denote with $x$ the input vector and with $y$ the output vector of the Linear layer the following transformation is applied within this layer:
+If we denote with $x$ the input row vector and with $y$ the output row vector of the Linear layer the following transformation is applied within this layer:
 
 $$y = x A^{T} + b$$
 
