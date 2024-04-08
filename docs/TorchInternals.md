@@ -269,6 +269,12 @@ class MaxPool2d(_MaxPoolNd):
 
 ## <a id="linear"></a>The Linear layer and class Linear
 
+### Brief overview of what the linear layer does
+
+If we denote with $x$ the input vector and with $y$ the output vector of the Linear layer the following transformation is applied within this layer:
+
+$$y = x A^{T} + b$$
+
 ### The Linear class implementation in torch
 
 ```python
