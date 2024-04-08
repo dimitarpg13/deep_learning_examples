@@ -7,6 +7,8 @@
 
 [The Linear class](#linear)
 
+[The ReLU function](#the-relu-function)
+
 ## <a id="conv-2d"></a>The two dimensional convolution layer and class Conv2d
 
 ### Conv2d class implementation in torch
@@ -351,3 +353,5 @@ class Linear(Module):
         return f'in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}'
 
 ```
+
+## <a id="the-relu-function"></a>The ReLU function implementation in torch
