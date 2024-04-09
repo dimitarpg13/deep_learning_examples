@@ -168,6 +168,8 @@ class Conv2d(_ConvNd):
         return self._conv_forward(input, self.weight, self.bias)
 ```
 
+[Go back to the beginning of the Section](#conv-2d)
+
 ## <a id="max-pool"></a>MaxPool layer
 
 ### Basics on Max Pooling
@@ -272,6 +274,7 @@ class MaxPool2d(_MaxPoolNd):
                             self.padding, self.dilation, ceil_mode=self.ceil_mode,
                             return_indices=self.return_indices)
 ```
+[Go back to the beginning of the Section](#max-pool)
 
 ## <a id="linear"></a>The Linear layer and class Linear
 
