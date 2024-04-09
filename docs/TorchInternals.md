@@ -691,7 +691,7 @@ class CrossEntropyLoss(_WeightedLoss):
 
 ```
 
-## The Stochastic Gradient Descent implementation
+## <a id="sgd"></a>The Stochastic Gradient Descent implementation
 
 ```python
 class SGD(Optimizer):
