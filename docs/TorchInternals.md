@@ -369,6 +369,8 @@ class Linear(Module):
 
 ```
 
+[Go back to the beginning of the Section](#linear)
+
 ## <a id="the-relu"></a>The ReLU class and related functionality 
 
 [Go back to Contents](#contents)
@@ -442,6 +444,8 @@ The function `torch.relu` is implemented in C and is declared in `_VariableFunct
 ```python
 def relu(input: Tensor) -> Tensor: ...
 ```
+[Go back to the beginning of the Section](#the-relu)
+
 ## <a id="normalize"></a>The Normalize class and related functionality
 
 [Go back to Contents](#contents)
@@ -547,6 +551,7 @@ def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool
     return tensor.sub_(mean).div_(std)
 
 ```
+[Go back to the beginning of the Section](#normalize)
 
 ## <a id="cross-entropy-loss"></a>The Cross Entropy Loss implementation
 
@@ -702,6 +707,7 @@ class CrossEntropyLoss(_WeightedLoss):
                                label_smoothing=self.label_smoothing)
 
 ```
+[Go back to the beginning of the Section](#cross-entropy-loss)
 
 ## <a id="sgd"></a>The Stochastic Gradient Descent implementation
 
@@ -1032,3 +1038,4 @@ def _multi_tensor_sgd(params: List[Tensor],
                 device_params[i].add_(device_grads[i], alpha=-lr)
 
 ```
+[Go back to the beginning of the Section](#sgd)
