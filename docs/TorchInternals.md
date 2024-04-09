@@ -19,6 +19,11 @@
 
 [Go back to Contents](#contents)
 
+### convolution in 2D
+
+$$\text{out}(N_i, C_{\text{out}_j}) = \text{bias}(C_{\text{out}_j}) +
+        \sum_{k = 0}^{C_{\text{in}} - 1} \text{weight}(C_{\text{out}_j}, k) \star \text{input}(N_i, k)$$
+
 ### Conv2d class implementation in torch
 
 ```python
