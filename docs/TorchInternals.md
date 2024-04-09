@@ -1,17 +1,19 @@
 # Torch Internals
 
 ## <a id="contents"></a>Contents
-[The Conv2d class](#conv-2d)
+[The two dimensional convolution layer and class Conv2d](#conv-2d)
 
-[The MaxPool class](#max-pool)
+[The MaxPool layer](#max-pool)
 
-[The Linear class](#linear)
+[The Linear layer and class Linear](#linear)
 
-[The ReLU class](#the-relu)
+[The ReLU class and related functionality](#the-relu)
 
-[The Normalize class](#normalize)
+[The Normalize class and related functionality](#normalize)
 
-[The CrossEntropyLoss class](#cross-entropy-loss)
+[The Cross Entropy Loss implementation](#cross-entropy-loss)
+
+[The Stochastic Gradient Descent implementation](#sgd)
 
 ## <a id="conv-2d"></a>The two dimensional convolution layer and class Conv2d
 
@@ -170,7 +172,7 @@ class Conv2d(_ConvNd):
 
 [Go back to the beginning of the Section](#conv-2d)
 
-## <a id="max-pool"></a>MaxPool layer
+## <a id="max-pool"></a>The MaxPool layer
 
 ### Basics on Max Pooling
 
@@ -361,9 +363,9 @@ class Linear(Module):
 
 ```
 
-## <a id="the-relu"></a>The ReLU implementation in torch
+## <a id="the-relu"></a>The ReLU class and related functionality 
 
-### The ReLU class
+### The ReLU class 
 
 ```python
 class ReLU(Module):
@@ -432,7 +434,7 @@ The function `torch.relu` is implemented in C and is declared in `_VariableFunct
 ```python
 def relu(input: Tensor) -> Tensor: ...
 ```
-## <a id="normalize"></a>The Normalize class implementation in torch
+## <a id="normalize"></a>The Normalize class and related functionality
 
 ### The Normalize class
 
@@ -536,9 +538,9 @@ def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool
 
 ```
 
-## <a id="cross-entropy-loss"></a>The Cross Entropy Loss implementation in torch
+## <a id="cross-entropy-loss"></a>The Cross Entropy Loss implementation
 
-### The CrossEntropyClass
+### The CrossEntropyLoss Class
 
 ```python
 class CrossEntropyLoss(_WeightedLoss):
@@ -689,7 +691,7 @@ class CrossEntropyLoss(_WeightedLoss):
 
 ```
 
-## Stochastic Gradient Descent implementation in torch
+## The Stochastic Gradient Descent implementation
 
 ```python
 class SGD(Optimizer):
