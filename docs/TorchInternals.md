@@ -21,6 +21,8 @@
 
 ### convolution in 2D
 
+Let $\left(N, C\_{\text{in}}, H, W\right)$ denotes the input of the layer.
+
 $$\text{out}\left(N_i, C_{\text{out}\_j}\right) = \text{bias}\left(C\_{\text{out}\_j}\right) + \sum_{k = 0}^{C\_{\text{in}} - 1} \text{weight}\left(C\_{\text{out}\_j}, k\right) \star \text{input}\left(N_i, k\right)$$
 
 ### Conv2d class implementation in torch
