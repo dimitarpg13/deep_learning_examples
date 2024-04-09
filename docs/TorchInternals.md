@@ -21,7 +21,7 @@
 
 ### convolution in 2D
 
-$$\text{out}\left(N_i, C_{\text{out}_j}\right) = \text{bias}$$
+$$\text{out}\left(N_i, C_{\text{out}_j}\right) = \text{bias} {\left(C_{\text{out}_j}\right)}$$
 
 ### Conv2d class implementation in torch
 
