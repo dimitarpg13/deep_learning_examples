@@ -17,6 +17,8 @@
 
 ## <a id="conv-2d"></a>The two dimensional convolution layer and class Conv2d
 
+[Go back to Contents](#contents)
+
 ### Conv2d class implementation in torch
 
 ```python
@@ -174,6 +176,8 @@ class Conv2d(_ConvNd):
 
 ## <a id="max-pool"></a>The MaxPool layer
 
+[Go back to Contents](#contents)
+
 ### Basics on Max Pooling
 
 Max pooling is a downsampling technique commonly used in convolutional neural networks (CNNs) to reduce the spatial dimensions of an input volume. It is a form of non-linear down-sampling that serves to make the representation smaller and more manageable, and to reduce the number of parameters and computation in the network. Max pooling operates independently on each depth slice of the input and resizes it spatially.
@@ -280,6 +284,8 @@ class MaxPool2d(_MaxPoolNd):
 
 ## <a id="linear"></a>The Linear layer and class Linear
 
+[Go back to Contents](#contents)
+
 ### Brief overview of what the linear layer does
 
 If we denote with $x$ the input row vector and with $y$ the output row vector of the Linear layer the following transformation is applied within this layer:
@@ -365,6 +371,8 @@ class Linear(Module):
 
 ## <a id="the-relu"></a>The ReLU class and related functionality 
 
+[Go back to Contents](#contents)
+
 ### The ReLU class 
 
 ```python
@@ -435,6 +443,8 @@ The function `torch.relu` is implemented in C and is declared in `_VariableFunct
 def relu(input: Tensor) -> Tensor: ...
 ```
 ## <a id="normalize"></a>The Normalize class and related functionality
+
+[Go back to Contents](#contents)
 
 ### The Normalize class
 
@@ -539,6 +549,8 @@ def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool
 ```
 
 ## <a id="cross-entropy-loss"></a>The Cross Entropy Loss implementation
+
+[Go back to Contents](#contents)
 
 ### The CrossEntropyLoss Class
 
@@ -692,6 +704,8 @@ class CrossEntropyLoss(_WeightedLoss):
 ```
 
 ## <a id="sgd"></a>The Stochastic Gradient Descent implementation
+
+[Go back to Contents](#contents)
 
 ```python
 class SGD(Optimizer):
