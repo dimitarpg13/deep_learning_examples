@@ -21,7 +21,10 @@
 
 ### convolution in 2D
 
-Let $\left(N, C\_{\text{in}}, H, W\right)$ denotes the input of the layer.
+Let us denote with $N$ the batch size, with $C$ - the number of channels, and with $H$ - the height of the input planes in pixels, and with $W$ the width in pixels. Then the 
+ tuple $\left(N, C\_{\text{in}}, H, W\right)$ denotes the input of the layer.
+
+For the output value we have:
 
 $$\text{out}\left(N_i, C_{\text{out}\_j}\right) = \text{bias}\left(C\_{\text{out}\_j}\right) + \sum_{k = 0}^{C\_{\text{in}} - 1} \text{weight}\left(C\_{\text{out}\_j}, k\right) \star \text{input}\left(N_i, k\right)    \quad (1)$$     
 
