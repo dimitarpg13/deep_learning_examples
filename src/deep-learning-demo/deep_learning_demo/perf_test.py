@@ -41,6 +41,7 @@ transform = transforms.Compose([
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True, num_workers=2)
 testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+testloader = torch.utils.data.DataLoader(testset, batch_size=64, shuffle=False, num_workers=2)
 
 # Initialize the network
 net = Net().to(device)
@@ -53,4 +54,56 @@ optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
 # Function to train the network
 def train():
     net.train()  # set the network to train mode
-    
+    running_loss = 0.0
+    start_time = time.time()
+
+    for i, data in enumerate(trainloader, 0):
+        inputs, labels = data[0].to(device), data[1].to(device)
+
+        optimizer.zero_grad()
+        outputs = net(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    average_loss = running_loss / len(trainloader)
+    print(f"Training - Elapsed Time: {elapsed_time:.2f}s Loss: {average_loss:.4f}")
+
+# Function to test the network
+def test():
+    net.eval()   # set the network to evaluation mode
+    correct = 0
+    total = 0
+
+    with torch.no_grad():
+        for data in testloader:
+            images, labels = data[0].to(device), data[1].to(device)
+            outputs = net(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    accuracy = 100 * correct / total
+    print(f"Testing - Accuracy:{accuracy:.2f}%")
+
+
+if __name__ == '__main__':
+    # Train the model with GPU utilization
+    print("Training with GPU")
+    train()
+
+    # Evaluate the model with GPU utilization
+    print("Testing with GPU")
+    test()
+
+    # # Train the model with CPU
+    # print("Training without GPU")
+    # train()
+
+    # # Evaluate the model with CPU
+    # print("Testing without GPU")
+    # test()
