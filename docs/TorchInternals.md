@@ -1,6 +1,8 @@
 # Torch Internals
 
 ## <a id="contents"></a>Contents
+[Hooks](#hooks)
+
 [Modules](#modules)
 
 [The two dimensional convolution layer and class Conv2d](#conv-2d)
@@ -16,6 +18,15 @@
 [The Cross Entropy Loss implementation](#cross-entropy-loss)
 
 [The Stochastic Gradient Descent implementation](#sgd)
+
+## <a id="modules"></a>Hooks in Torch
+
+[Go back to Contents](#contents)
+
+### Hooks-related functionality in PyTorch
+
+[Go back to the beginning of the Section](#hooks)
+
 
 ## <a id="modules"></a>Modules in Torch
 
