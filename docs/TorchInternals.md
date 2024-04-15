@@ -23,7 +23,13 @@
 
 [Go back to Contents](#contents)
 
+Hooks in PyTorch are functions which provide infrastructure to update the network gradients, network inputs and network outputs dynamically i.e. at run time.
+Hooks are used mainly on Tensors and on Modules (More on `torch.nn.Modules` in the next section).
+
+
+
 ### Hooks-related functionality in PyTorch
+
 
 [Go back to the beginning of the Section](#hooks)
 
