@@ -24,8 +24,15 @@
 [Go back to Contents](#contents)
 
 Hooks in PyTorch are functions which provide infrastructure to update the network gradients, network inputs and network outputs dynamically i.e. at run time.
-Hooks are used mainly on Tensors and on Modules (More on `torch.nn.Modules` in the next section).
+Hooks are used mainly on Tensors and on Modules (More on `torch.nn.Modules` in the next section). A hook can be applied in one of the following ways:
 
+* forward prehook (executing before the forward pass)
+
+* forward hook (executing after the forward pass)
+
+* backward hook (executing after the backward pass)
+
+Here forward pass is the computation phase in which the immediate inputs of the current neuron layer are used to compute the outputs using the current set of weights and so on until the final layer is reached. Backward pass calculates the loss at the beginning of each neuron layer starting with the output after which it updates the weights in backwards direction. 
 
 
 ### Hooks-related functionality in PyTorch
