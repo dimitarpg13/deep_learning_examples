@@ -1,13 +1,32 @@
 # Torch Internals
 
 ## <a id="contents"></a>Contents
-[The Conv2d class](#conv-2d)
+[The two dimensional convolution layer and class Conv2d](#conv-2d)
 
-[The MaxPool class](#max-pool)
+[The MaxPool layer](#max-pool)
 
-[The Linear class](#linear)
+[The Linear layer and class Linear](#linear)
+
+[The ReLU class and related functionality](#the-relu)
+
+[The Normalize class and related functionality](#normalize)
+
+[The Cross Entropy Loss implementation](#cross-entropy-loss)
+
+[The Stochastic Gradient Descent implementation](#sgd)
 
 ## <a id="conv-2d"></a>The two dimensional convolution layer and class Conv2d
+
+[Go back to Contents](#contents)
+
+### convolution in 2D
+
+Let us denote with $N$ the batch size, with $C$ - the number of channels, and with $H$ - the height of the input planes in pixels, and with $W$ the width in pixels. Then the 
+ tuple $\left(N, C\_{\text{in}}, H, W\right)$ denotes the input of the layer.
+
+For the output value we have:
+
+$$\text{out}\left(N_i, C_{\text{out}\_j}\right) = \text{bias}\left(C\_{\text{out}\_j}\right) + \sum_{k = 0}^{C\_{\text{in}} - 1} \text{weight}\left(C\_{\text{out}\_j}, k\right) \star \text{input}\left(N_i, k\right)    \quad (1)$$     
 
 ### Conv2d class implementation in torch
 
@@ -162,7 +181,11 @@ class Conv2d(_ConvNd):
         return self._conv_forward(input, self.weight, self.bias)
 ```
 
-## <a id="max-pool"></a>MaxPool layer
+[Go back to the beginning of the Section](#conv-2d)
+
+## <a id="max-pool"></a>The MaxPool layer
+
+[Go back to Contents](#contents)
 
 ### Basics on Max Pooling
 
@@ -266,8 +289,11 @@ class MaxPool2d(_MaxPoolNd):
                             self.padding, self.dilation, ceil_mode=self.ceil_mode,
                             return_indices=self.return_indices)
 ```
+[Go back to the beginning of the Section](#max-pool)
 
 ## <a id="linear"></a>The Linear layer and class Linear
+
+[Go back to Contents](#contents)
 
 ### Brief overview of what the linear layer does
 
@@ -351,3 +377,674 @@ class Linear(Module):
         return f'in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}'
 
 ```
+
+[Go back to the beginning of the Section](#linear)
+
+## <a id="the-relu"></a>The ReLU class and related functionality 
+
+[Go back to Contents](#contents)
+
+### The ReLU class 
+
+```python
+class ReLU(Module):
+    r"""Applies the rectified linear unit function element-wise:
+
+    :math:`\text{ReLU}(x) = (x)^+ = \max(0, x)`
+
+    Args:
+        inplace: can optionally do the operation in-place. Default: ``False``
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    .. image:: ../scripts/activation_images/ReLU.png
+
+    Examples::
+
+        >>> m = nn.ReLU()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+
+
+      An implementation of CReLU - https://arxiv.org/abs/1603.05201
+
+        >>> m = nn.ReLU()
+        >>> input = torch.randn(2).unsqueeze(0)
+        >>> output = torch.cat((m(input), m(-input)))
+    """
+    __constants__ = ['inplace']
+    inplace: bool
+
+    def __init__(self, inplace: bool = False):
+        super().__init__()
+        self.inplace = inplace
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.relu(input, inplace=self.inplace)
+
+    def extra_repr(self) -> str:
+        inplace_str = 'inplace=True' if self.inplace else ''
+        return inplace_str
+
+```
+
+The function `functional.relu` is implemented as:
+
+```python
+def relu(input: Tensor, inplace: bool = False) -> Tensor:  # noqa: D400,D402
+    r"""relu(input, inplace=False) -> Tensor
+
+    Applies the rectified linear unit function element-wise. See
+    :class:`~torch.nn.ReLU` for more details.
+    """
+    if has_torch_function_unary(input):
+        return handle_torch_function(relu, (input,), input, inplace=inplace)
+    if inplace:
+        result = torch.relu_(input)
+    else:
+        result = torch.relu(input)
+    return result
+```
+
+The function `torch.relu` is implemented in C and is declared in `_VariableFunctions.pyi` as:
+
+```python
+def relu(input: Tensor) -> Tensor: ...
+```
+[Go back to the beginning of the Section](#the-relu)
+
+## <a id="normalize"></a>The Normalize class and related functionality
+
+[Go back to Contents](#contents)
+
+### The Normalize class
+
+```python
+class Normalize(torch.nn.Module):
+    """Normalize a tensor image with mean and standard deviation.
+    This transform does not support PIL Image.
+    Given mean: ``(mean[1],...,mean[n])`` and std: ``(std[1],..,std[n])`` for ``n``
+    channels, this transform will normalize each channel of the input
+    ``torch.*Tensor`` i.e.,
+    ``output[channel] = (input[channel] - mean[channel]) / std[channel]``
+
+    .. note::
+        This transform acts out of place, i.e., it does not mutate the input tensor.
+
+    Args:
+        mean (sequence): Sequence of means for each channel.
+        std (sequence): Sequence of standard deviations for each channel.
+        inplace(bool,optional): Bool to make this operation in-place.
+
+    """
+
+    def __init__(self, mean, std, inplace=False):
+        super().__init__()
+        _log_api_usage_once(self)
+        self.mean = mean
+        self.std = std
+        self.inplace = inplace
+
+    def forward(self, tensor: Tensor) -> Tensor:
+        """
+        Args:
+            tensor (Tensor): Tensor image to be normalized.
+
+        Returns:
+            Tensor: Normalized Tensor image.
+        """
+        return F.normalize(tensor, self.mean, self.std, self.inplace)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(mean={self.mean}, std={self.std})"
+
+```
+### The normalize function
+
+```python
+def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool = False) -> Tensor:
+    """Normalize a float tensor image with mean and standard deviation.
+    This transform does not support PIL Image.
+
+    .. note::
+        This transform acts out of place by default, i.e., it does not mutates the input tensor.
+
+    See :class:`~torchvision.transforms.Normalize` for more details.
+
+    Args:
+        tensor (Tensor): Float tensor image of size (C, H, W) or (B, C, H, W) to be normalized.
+        mean (sequence): Sequence of means for each channel.
+        std (sequence): Sequence of standard deviations for each channel.
+        inplace(bool,optional): Bool to make this operation inplace.
+
+    Returns:
+        Tensor: Normalized Tensor image.
+    """
+    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
+        _log_api_usage_once(normalize)
+    if not isinstance(tensor, torch.Tensor):
+        raise TypeError(f"img should be Tensor Image. Got {type(tensor)}")
+
+    return F_t.normalize(tensor, mean=mean, std=std, inplace=inplace)
+
+```
+
+Implementation of `_functional_tensor.normalize(...)`
+
+```python
+def normalize(tensor: Tensor, mean: List[float], std: List[float], inplace: bool = False) -> Tensor:
+    _assert_image_tensor(tensor)
+
+    if not tensor.is_floating_point():
+        raise TypeError(f"Input tensor should be a float tensor. Got {tensor.dtype}.")
+
+    if tensor.ndim < 3:
+        raise ValueError(
+            f"Expected tensor to be a tensor image of size (..., C, H, W). Got tensor.size() = {tensor.size()}"
+        )
+
+    if not inplace:
+        tensor = tensor.clone()
+
+    dtype = tensor.dtype
+    mean = torch.as_tensor(mean, dtype=dtype, device=tensor.device)
+    std = torch.as_tensor(std, dtype=dtype, device=tensor.device)
+    if (std == 0).any():
+        raise ValueError(f"std evaluated to zero after conversion to {dtype}, leading to division by zero.")
+    if mean.ndim == 1:
+        mean = mean.view(-1, 1, 1)
+    if std.ndim == 1:
+        std = std.view(-1, 1, 1)
+    return tensor.sub_(mean).div_(std)
+
+```
+[Go back to the beginning of the Section](#normalize)
+
+## <a id="cross-entropy-loss"></a>The Cross Entropy Loss implementation
+
+[Go back to Contents](#contents)
+
+### The CrossEntropyLoss Class
+
+```python
+class CrossEntropyLoss(_WeightedLoss):
+    r"""This criterion computes the cross entropy loss between input logits
+    and target.
+
+    It is useful when training a classification problem with `C` classes.
+    If provided, the optional argument :attr:`weight` should be a 1D `Tensor`
+    assigning weight to each of the classes.
+    This is particularly useful when you have an unbalanced training set.
+
+    The `input` is expected to contain the unnormalized logits for each class (which do `not` need
+    to be positive or sum to 1, in general).
+    `input` has to be a Tensor of size :math:`(C)` for unbatched input,
+    :math:`(minibatch, C)` or :math:`(minibatch, C, d_1, d_2, ..., d_K)` with :math:`K \geq 1` for the
+    `K`-dimensional case. The last being useful for higher dimension inputs, such
+    as computing cross entropy loss per-pixel for 2D images.
+
+    The `target` that this criterion expects should contain either:
+
+    - Class indices in the range :math:`[0, C)` where :math:`C` is the number of classes; if
+      `ignore_index` is specified, this loss also accepts this class index (this index
+      may not necessarily be in the class range). The unreduced (i.e. with :attr:`reduction`
+      set to ``'none'``) loss for this case can be described as:
+
+      .. math::
+          \ell(x, y) = L = \{l_1,\dots,l_N\}^\top, \quad
+          l_n = - w_{y_n} \log \frac{\exp(x_{n,y_n})}{\sum_{c=1}^C \exp(x_{n,c})}
+          \cdot \mathbb{1}\{y_n \not= \text{ignore\_index}\}
+
+      where :math:`x` is the input, :math:`y` is the target, :math:`w` is the weight,
+      :math:`C` is the number of classes, and :math:`N` spans the minibatch dimension as well as
+      :math:`d_1, ..., d_k` for the `K`-dimensional case. If
+      :attr:`reduction` is not ``'none'`` (default ``'mean'``), then
+
+      .. math::
+          \ell(x, y) = \begin{cases}
+              \sum_{n=1}^N \frac{1}{\sum_{n=1}^N w_{y_n} \cdot \mathbb{1}\{y_n \not= \text{ignore\_index}\}} l_n, &
+               \text{if reduction} = \text{`mean';}\\
+                \sum_{n=1}^N l_n,  &
+                \text{if reduction} = \text{`sum'.}
+            \end{cases}
+
+      Note that this case is equivalent to applying :class:`~torch.nn.LogSoftmax`
+      on an input, followed by :class:`~torch.nn.NLLLoss`.
+
+    - Probabilities for each class; useful when labels beyond a single class per minibatch item
+      are required, such as for blended labels, label smoothing, etc. The unreduced (i.e. with
+      :attr:`reduction` set to ``'none'``) loss for this case can be described as:
+
+      .. math::
+          \ell(x, y) = L = \{l_1,\dots,l_N\}^\top, \quad
+          l_n = - \sum_{c=1}^C w_c \log \frac{\exp(x_{n,c})}{\sum_{i=1}^C \exp(x_{n,i})} y_{n,c}
+
+      where :math:`x` is the input, :math:`y` is the target, :math:`w` is the weight,
+      :math:`C` is the number of classes, and :math:`N` spans the minibatch dimension as well as
+      :math:`d_1, ..., d_k` for the `K`-dimensional case. If
+      :attr:`reduction` is not ``'none'`` (default ``'mean'``), then
+
+      .. math::
+          \ell(x, y) = \begin{cases}
+              \frac{\sum_{n=1}^N l_n}{N}, &
+               \text{if reduction} = \text{`mean';}\\
+                \sum_{n=1}^N l_n,  &
+                \text{if reduction} = \text{`sum'.}
+            \end{cases}
+
+    .. note::
+        The performance of this criterion is generally better when `target` contains class
+        indices, as this allows for optimized computation. Consider providing `target` as
+        class probabilities only when a single class label per minibatch item is too restrictive.
+
+    Args:
+        weight (Tensor, optional): a manual rescaling weight given to each class.
+            If given, has to be a Tensor of size `C` and floating point dtype
+        size_average (bool, optional): Deprecated (see :attr:`reduction`). By default,
+            the losses are averaged over each loss element in the batch. Note that for
+            some losses, there are multiple elements per sample. If the field :attr:`size_average`
+            is set to ``False``, the losses are instead summed for each minibatch. Ignored
+            when :attr:`reduce` is ``False``. Default: ``True``
+        ignore_index (int, optional): Specifies a target value that is ignored
+            and does not contribute to the input gradient. When :attr:`size_average` is
+            ``True``, the loss is averaged over non-ignored targets. Note that
+            :attr:`ignore_index` is only applicable when the target contains class indices.
+        reduce (bool, optional): Deprecated (see :attr:`reduction`). By default, the
+            losses are averaged or summed over observations for each minibatch depending
+            on :attr:`size_average`. When :attr:`reduce` is ``False``, returns a loss per
+            batch element instead and ignores :attr:`size_average`. Default: ``True``
+        reduction (str, optional): Specifies the reduction to apply to the output:
+            ``'none'`` | ``'mean'`` | ``'sum'``. ``'none'``: no reduction will
+            be applied, ``'mean'``: the weighted mean of the output is taken,
+            ``'sum'``: the output will be summed. Note: :attr:`size_average`
+            and :attr:`reduce` are in the process of being deprecated, and in
+            the meantime, specifying either of those two args will override
+            :attr:`reduction`. Default: ``'mean'``
+        label_smoothing (float, optional): A float in [0.0, 1.0]. Specifies the amount
+            of smoothing when computing the loss, where 0.0 means no smoothing. The targets
+            become a mixture of the original ground truth and a uniform distribution as described in
+            `Rethinking the Inception Architecture for Computer Vision <https://arxiv.org/abs/1512.00567>`__. Default: :math:`0.0`.
+
+    Shape:
+        - Input: Shape :math:`(C)`, :math:`(N, C)` or :math:`(N, C, d_1, d_2, ..., d_K)` with :math:`K \geq 1`
+          in the case of `K`-dimensional loss.
+        - Target: If containing class indices, shape :math:`()`, :math:`(N)` or :math:`(N, d_1, d_2, ..., d_K)` with
+          :math:`K \geq 1` in the case of K-dimensional loss where each value should be between :math:`[0, C)`.
+          If containing class probabilities, same shape as the input and each value should be between :math:`[0, 1]`.
+        - Output: If reduction is 'none', shape :math:`()`, :math:`(N)` or :math:`(N, d_1, d_2, ..., d_K)` with :math:`K \geq 1`
+          in the case of K-dimensional loss, depending on the shape of the input. Otherwise, scalar.
+
+
+        where:
+
+        .. math::
+            \begin{aligned}
+                C ={} & \text{number of classes} \\
+                N ={} & \text{batch size} \\
+            \end{aligned}
+
+    Examples::
+
+        >>> # Example of target with class indices
+        >>> loss = nn.CrossEntropyLoss()
+        >>> input = torch.randn(3, 5, requires_grad=True)
+        >>> target = torch.empty(3, dtype=torch.long).random_(5)
+        >>> output = loss(input, target)
+        >>> output.backward()
+        >>>
+        >>> # Example of target with class probabilities
+        >>> input = torch.randn(3, 5, requires_grad=True)
+        >>> target = torch.randn(3, 5).softmax(dim=1)
+        >>> output = loss(input, target)
+        >>> output.backward()
+    """
+    __constants__ = ['ignore_index', 'reduction', 'label_smoothing']
+    ignore_index: int
+    label_smoothing: float
+
+    def __init__(self, weight: Optional[Tensor] = None, size_average=None, ignore_index: int = -100,
+                 reduce=None, reduction: str = 'mean', label_smoothing: float = 0.0) -> None:
+        super().__init__(weight, size_average, reduce, reduction)
+        self.ignore_index = ignore_index
+        self.label_smoothing = label_smoothing
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        return F.cross_entropy(input, target, weight=self.weight,
+                               ignore_index=self.ignore_index, reduction=self.reduction,
+                               label_smoothing=self.label_smoothing)
+
+```
+[Go back to the beginning of the Section](#cross-entropy-loss)
+
+## <a id="sgd"></a>The Stochastic Gradient Descent implementation
+
+[Go back to Contents](#contents)
+
+```python
+class SGD(Optimizer):
+    def __init__(self, params, lr=1e-3, momentum=0, dampening=0,
+                 weight_decay=0, nesterov=False, *, maximize: bool = False, foreach: Optional[bool] = None,
+                 differentiable: bool = False):
+        if lr < 0.0:
+            raise ValueError(f"Invalid learning rate: {lr}")
+        if momentum < 0.0:
+            raise ValueError(f"Invalid momentum value: {momentum}")
+        if weight_decay < 0.0:
+            raise ValueError(f"Invalid weight_decay value: {weight_decay}")
+
+        defaults = dict(lr=lr, momentum=momentum, dampening=dampening,
+                        weight_decay=weight_decay, nesterov=nesterov,
+                        maximize=maximize, foreach=foreach,
+                        differentiable=differentiable)
+        if nesterov and (momentum <= 0 or dampening != 0):
+            raise ValueError("Nesterov momentum requires a momentum and zero dampening")
+        super().__init__(params, defaults)
+
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        for group in self.param_groups:
+            group.setdefault('nesterov', False)
+            group.setdefault('maximize', False)
+            group.setdefault('foreach', None)
+            group.setdefault('differentiable', False)
+
+    def _init_group(self, group, params_with_grad, d_p_list, momentum_buffer_list):
+        has_sparse_grad = False
+
+        for p in group['params']:
+            if p.grad is not None:
+                params_with_grad.append(p)
+                d_p_list.append(p.grad)
+                if p.grad.is_sparse:
+                    has_sparse_grad = True
+
+                state = self.state[p]
+                if 'momentum_buffer' not in state:
+                    momentum_buffer_list.append(None)
+                else:
+                    momentum_buffer_list.append(state['momentum_buffer'])
+
+        return has_sparse_grad
+
+    @_use_grad_for_differentiable
+    def step(self, closure=None):
+        """Performs a single optimization step.
+
+        Args:
+            closure (Callable, optional): A closure that reevaluates the model
+                and returns the loss.
+        """
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+
+        for group in self.param_groups:
+            params_with_grad = []
+            d_p_list = []
+            momentum_buffer_list = []
+
+            has_sparse_grad = self._init_group(group, params_with_grad, d_p_list, momentum_buffer_list)
+
+            sgd(params_with_grad,
+                d_p_list,
+                momentum_buffer_list,
+                weight_decay=group['weight_decay'],
+                momentum=group['momentum'],
+                lr=group['lr'],
+                dampening=group['dampening'],
+                nesterov=group['nesterov'],
+                maximize=group['maximize'],
+                has_sparse_grad=has_sparse_grad,
+                foreach=group['foreach'])
+
+            # update momentum_buffers in state
+            for p, momentum_buffer in zip(params_with_grad, momentum_buffer_list):
+                state = self.state[p]
+                state['momentum_buffer'] = momentum_buffer
+
+        return loss
+
+
+SGD.__doc__ = r"""Implements stochastic gradient descent (optionally with momentum).
+
+    .. math::
+       \begin{aligned}
+            &\rule{110mm}{0.4pt}                                                                 \\
+            &\textbf{input}      : \gamma \text{ (lr)}, \: \theta_0 \text{ (params)}, \: f(\theta)
+                \text{ (objective)}, \: \lambda \text{ (weight decay)},                          \\
+            &\hspace{13mm} \:\mu \text{ (momentum)}, \:\tau \text{ (dampening)},
+            \:\textit{ nesterov,}\:\textit{ maximize}                                     \\[-1.ex]
+            &\rule{110mm}{0.4pt}                                                                 \\
+            &\textbf{for} \: t=1 \: \textbf{to} \: \ldots \: \textbf{do}                         \\
+            &\hspace{5mm}g_t           \leftarrow   \nabla_{\theta} f_t (\theta_{t-1})           \\
+            &\hspace{5mm}\textbf{if} \: \lambda \neq 0                                           \\
+            &\hspace{10mm} g_t \leftarrow g_t + \lambda  \theta_{t-1}                            \\
+            &\hspace{5mm}\textbf{if} \: \mu \neq 0                                               \\
+            &\hspace{10mm}\textbf{if} \: t > 1                                                   \\
+            &\hspace{15mm} \textbf{b}_t \leftarrow \mu \textbf{b}_{t-1} + (1-\tau) g_t           \\
+            &\hspace{10mm}\textbf{else}                                                          \\
+            &\hspace{15mm} \textbf{b}_t \leftarrow g_t                                           \\
+            &\hspace{10mm}\textbf{if} \: \textit{nesterov}                                       \\
+            &\hspace{15mm} g_t \leftarrow g_{t} + \mu \textbf{b}_t                             \\
+            &\hspace{10mm}\textbf{else}                                                   \\[-1.ex]
+            &\hspace{15mm} g_t  \leftarrow  \textbf{b}_t                                         \\
+            &\hspace{5mm}\textbf{if} \: \textit{maximize}                                          \\
+            &\hspace{10mm}\theta_t \leftarrow \theta_{t-1} + \gamma g_t                   \\[-1.ex]
+            &\hspace{5mm}\textbf{else}                                                    \\[-1.ex]
+            &\hspace{10mm}\theta_t \leftarrow \theta_{t-1} - \gamma g_t                   \\[-1.ex]
+            &\rule{110mm}{0.4pt}                                                          \\[-1.ex]
+            &\bf{return} \:  \theta_t                                                     \\[-1.ex]
+            &\rule{110mm}{0.4pt}                                                          \\[-1.ex]
+       \end{aligned}
+
+    Nesterov momentum is based on the formula from
+    `On the importance of initialization and momentum in deep learning`__.
+    """ + fr"""
+    Args:
+        params (iterable): iterable of parameters to optimize or dicts defining
+            parameter groups
+        lr (float, optional): learning rate (default: 1e-3)
+        momentum (float, optional): momentum factor (default: 0)
+        weight_decay (float, optional): weight decay (L2 penalty) (default: 0)
+        dampening (float, optional): dampening for momentum (default: 0)
+        nesterov (bool, optional): enables Nesterov momentum (default: False)
+        {_maximize_doc}
+        {_foreach_doc}
+        {_differentiable_doc}
+    """ + r"""
+
+    Example:
+        >>> # xdoctest: +SKIP
+        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
+        >>> optimizer.zero_grad()
+        >>> loss_fn(model(input), target).backward()
+        >>> optimizer.step()
+
+    __ http://www.cs.toronto.edu/%7Ehinton/absps/momentum.pdf
+
+    .. note::
+        The implementation of SGD with Momentum/Nesterov subtly differs from
+        Sutskever et. al. and implementations in some other frameworks.
+
+        Considering the specific case of Momentum, the update can be written as
+
+        .. math::
+            \begin{aligned}
+                v_{t+1} & = \mu * v_{t} + g_{t+1}, \\
+                p_{t+1} & = p_{t} - \text{lr} * v_{t+1},
+            \end{aligned}
+
+        where :math:`p`, :math:`g`, :math:`v` and :math:`\mu` denote the
+        parameters, gradient, velocity, and momentum respectively.
+
+        This is in contrast to Sutskever et. al. and
+        other frameworks which employ an update of the form
+
+        .. math::
+            \begin{aligned}
+                v_{t+1} & = \mu * v_{t} + \text{lr} * g_{t+1}, \\
+                p_{t+1} & = p_{t} - v_{t+1}.
+            \end{aligned}
+
+        The Nesterov version is analogously modified.
+
+        Moreover, the initial value of the momentum buffer is set to the
+        gradient value at the first step. This is in contrast to some other
+        frameworks that initialize it to all zeros.
+
+    """
+
+
+def sgd(params: List[Tensor],
+        d_p_list: List[Tensor],
+        momentum_buffer_list: List[Optional[Tensor]],
+        # kwonly args with defaults are not supported by functions compiled with torchscript issue #70627
+        # setting this as kwarg for now as functional API is compiled by torch/distributed/optim
+        has_sparse_grad: bool = None,
+        foreach: Optional[bool] = None,
+        *,
+        weight_decay: float,
+        momentum: float,
+        lr: float,
+        dampening: float,
+        nesterov: bool,
+        maximize: bool):
+    r"""Functional API that performs SGD algorithm computation.
+
+    See :class:`~torch.optim.SGD` for details.
+    """
+
+    if foreach is None:
+        # why must we be explicit about an if statement for torch.jit.is_scripting here?
+        # because JIT can't handle Optionals nor fancy conditionals when scripting
+        if not torch.jit.is_scripting():
+            _, foreach = _default_to_fused_or_foreach(params, differentiable=False, use_fused=False)
+        else:
+            foreach = False
+
+    if foreach and torch.jit.is_scripting():
+        raise RuntimeError('torch.jit.script not supported with foreach optimizers')
+
+    if foreach and not torch.jit.is_scripting():
+        func = _multi_tensor_sgd
+    else:
+        func = _single_tensor_sgd
+
+    func(params,
+         d_p_list,
+         momentum_buffer_list,
+         weight_decay=weight_decay,
+         momentum=momentum,
+         lr=lr,
+         dampening=dampening,
+         nesterov=nesterov,
+         has_sparse_grad=has_sparse_grad,
+         maximize=maximize)
+
+def _single_tensor_sgd(params: List[Tensor],
+                       d_p_list: List[Tensor],
+                       momentum_buffer_list: List[Optional[Tensor]],
+                       *,
+                       weight_decay: float,
+                       momentum: float,
+                       lr: float,
+                       dampening: float,
+                       nesterov: bool,
+                       maximize: bool,
+                       has_sparse_grad: bool):
+
+    for i, param in enumerate(params):
+        d_p = d_p_list[i] if not maximize else -d_p_list[i]
+
+        if weight_decay != 0:
+            d_p = d_p.add(param, alpha=weight_decay)
+
+        if momentum != 0:
+            buf = momentum_buffer_list[i]
+
+            if buf is None:
+                buf = torch.clone(d_p).detach()
+                momentum_buffer_list[i] = buf
+            else:
+                buf.mul_(momentum).add_(d_p, alpha=1 - dampening)
+
+            if nesterov:
+                d_p = d_p.add(buf, alpha=momentum)
+            else:
+                d_p = buf
+
+        param.add_(d_p, alpha=-lr)
+
+
+def _multi_tensor_sgd(params: List[Tensor],
+                      grads: List[Tensor],
+                      momentum_buffer_list: List[Optional[Tensor]],
+                      *,
+                      weight_decay: float,
+                      momentum: float,
+                      lr: float,
+                      dampening: float,
+                      nesterov: bool,
+                      maximize: bool,
+                      has_sparse_grad: bool):
+
+    if len(params) == 0:
+        return
+
+    grouped_tensors = Optimizer._group_tensors_by_device_and_dtype([params, grads, momentum_buffer_list], with_indices=True)
+    for ((device_params, device_grads, device_momentum_buffer_list), indices) in grouped_tensors.values():
+        device_has_sparse_grad = has_sparse_grad and any(grad.is_sparse for grad in device_grads)
+
+        if maximize:
+            device_grads = torch._foreach_neg(device_grads)
+
+        if weight_decay != 0:
+            # Re-use the intermediate memory (device_grads) already allocated for maximize
+            if maximize:
+                torch._foreach_add_(device_grads, device_params, alpha=weight_decay)
+            else:
+                device_grads = torch._foreach_add(device_grads, device_params, alpha=weight_decay)
+
+        if momentum != 0:
+            bufs = []
+
+            all_states_with_momentum_buffer = True
+            for i in range(len(device_momentum_buffer_list)):
+                if device_momentum_buffer_list[i] is None:
+                    all_states_with_momentum_buffer = False
+                    break
+                else:
+                    bufs.append(device_momentum_buffer_list[i])
+
+            if all_states_with_momentum_buffer:
+                torch._foreach_mul_(bufs, momentum)
+                torch._foreach_add_(bufs, device_grads, alpha=1 - dampening)
+            else:
+                bufs = []
+                for i in range(len(device_momentum_buffer_list)):
+                    if device_momentum_buffer_list[i] is None:
+                        buf = device_momentum_buffer_list[i] = momentum_buffer_list[indices[i]] = \
+                            torch.clone(device_grads[i]).detach()
+                    else:
+                        buf = device_momentum_buffer_list[i]
+                        buf.mul_(momentum).add_(device_grads[i], alpha=1 - dampening)
+
+                    bufs.append(buf)
+
+            if nesterov:
+                torch._foreach_add_(device_grads, bufs, alpha=momentum)
+            else:
+                device_grads = bufs
+
+        if not device_has_sparse_grad:
+            torch._foreach_add_(device_params, device_grads, alpha=-lr)
+        else:
+            # foreach APIs don't support sparse
+            for i in range(len(device_params)):
+                device_params[i].add_(device_grads[i], alpha=-lr)
+
+```
+[Go back to the beginning of the Section](#sgd)
